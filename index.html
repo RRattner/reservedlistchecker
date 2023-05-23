@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<!--Author name is Richard Rattner-->
+<!--This project uses an API called Scryfall to check if a card from the game Magic: The Gathering is on the reserved list.  Users enter the card name,
+then we call the Scryfall API to look for it.  If we can find it (so no error and finding only one card) then we take the card's image and check if it's
+on the reserved list, and then report if it is or is not.-->
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Reserved List Checker</title>
+        <meta name="author" content="Richard Rattner">
+    </head>
+<!--This is an explanation to provide context for what the project is aiming to do-->
+<body style="background-color:rgb(235, 235, 215); display: block; text-align: center; margin-left:auto; margin-right:auto; font-size: 1.2em; font-family:arial, verdana, sans-serif">
+    <span id = "explanation" style = "text-align: center;">Welcome to the Reserved List Card Checker!  This is a tool you can use to see if a card from Magic: The Gathering is on the Reserved List.<br>
+        The Reserved List is a list of cards that the makers of Magic: The Gathering have promised not to reprint or make obsolete.  To use this tool,<br>
+        enter the name of a Magic: The Gathering card into the Card Name area and click search.  If you aren't familiar with the game but would like<br>
+        to test the tool, here are some search options:<br>
+        <br>
+        Elesh Norn, Grand Cenobite<br>
+        Badlands<br>
+        Zuberi, Golden Feather<br>
+        Restoration Angel<br>
+        Nethroi, Apex of Death<br>
+        Haughty Djinn<br>
+        Mox Pearl<br>
+        <br>
+        This tool is powered with the Scryfall API.<br><br>
+    </span>
+    <!--This code is used to create the elements the user will be seeing.  "onTheReservedList" isn't assigned anything until a search is done, at which point it will
+    be assigned either a statement as to whether or not the searched card is on the reserved list, or a statement alerting the user that the card couldn't be found.
+    The image is "Blank Card" until a valid card is searched, at which point it is redefined to have that card's image.  searchCard is our function to call the
+    Scryfall API to check for our card-->
+    Card Name:<input type="text" id="cardName" name="cardName" placeholder="Enter a Card Name"><br><br>
+    <span id ="onTheReservedList"></span><br><br>
+    <img id = "cardImage" src="LocalImages/BlankCard.png" alt="Picture of Current Card" width = 300><br><br>
+    <input type="button" name="search" value="Search" onclick = "return searchCard();"  style = "font-size: 1.2em;" ><br>
+
+<script>
+    //This is pretty standard stuff for our JSON call
+    var getJSON = function(url, callback) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('get', url, true);
+        xhr.responseType = 'json';
+        xhr.onload = function() {
+            let status = xhr.status;
+            if(status == 200) {
+                callback(null, xhr.response);
+            }
+            else {
+                callback(status);
+            }
+        };
+        xhr.send();
+    };
+    //This is the primary meat of the project, and is where we search for the card on Scryfall
+    function searchCard() {
+        //We're grabbing the name that was entered here so we can make any adjustments we need to and use it in our call to Scryfall
+        let searchedCardName = document.getElementById("cardName").value;
+        //Here we loop through card name to see if there are any adjustments that need to be made, specifically replacing spaces and and apostrophes with dashes
+        for( let i = 0; i < searchedCardName.length; i++) {
+            if(searchedCardName[i] === ' ') {
+                searchedCardName = searchedCardName.substring(0, i) + "-" + searchedCardName.substring(i+1, searchedCardName.length); 
+            }
+            if(searchedCardName[i] === "'") {
+                searchedCardName = searchedCardName.substring(0, i) + searchedCardName.substring(i+1, searchedCardName.length) 
+            }
+        }
+        //Now that we have made any necessary adjustments to the entered card name we combine the entered name with this statement, which gives us our call to Scryfall
+        //This still strikes me as a little odd, but is how Scryfall is structured
+        getJSON('https://api.scryfall.com/cards/search?order=cmc&q='+searchedCardName, function(err, data) {
+        if(err != null) {
+            //alert('No Cards Found.' + err)
+            //In the event that we run into an error of some kind we output that no cards were found and reset the image to the default blank card
+            document.getElementById("onTheReservedList").innerHTML = "No cards found.";
+            document.getElementById("cardImage").src = "LocalImages/BlankCard.png";
+        }
+        else {
+            //If we don't run into an error then we check to see if more than one card was found.  If so we tell the user how many cards were found and ask them to perform
+            //A more specific search.
+            if(data.total_cards > 1) {
+                //alert("Found " + data.total_cards + " different cards, please search again for one specific card.");
+                document.getElementById("onTheReservedList").innerHTML = "Found " + data.total_cards + " different cards, please search again for one specific card.";
+                document.getElementById("cardImage").src = "LocalImages/BlankCard.png";
+            }
+            else if (data.total_cards == 1) {  
+                //In this case there wasn't an error and we only found one card.  In that case we grab the image file for the card from the API using image_uris.large
+                //and we then check to see if it is on the reserved list by checking if reserved is true or false.  Depending on the result, we output that the card is or
+                //is not on the reserved list.
+                document.getElementById("cardImage").src = data.data[0].image_uris.large;
+                //console.log(data.data[0].image_uris.large);
+                if(data.data[0].reserved) {
+                    //alert("This card is on the reserved list.");
+                    document.getElementById("onTheReservedList").innerHTML = data.data[0].name + ' is on the reserved list.';
+                }
+                else {
+                    //alert("This card is not on the reserved list.");
+                    document.getElementById("onTheReservedList").innerHTML = data.data[0].name + ' is not on the reserved list.';
+                }
+            }
+            //console.log(data);
+        }
+    });
+    
+    }
+</script>
+</body>
+</html>
